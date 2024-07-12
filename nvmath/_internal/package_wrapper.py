@@ -18,3 +18,9 @@ try:
 except ImportError as e:
     pass
 
+try:
+    import warp
+    from .package_ifc_warp import WarpPackage
+    PACKAGE['warp'] = WarpPackage
+except ImportError as e:
+    pass

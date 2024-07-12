@@ -166,5 +166,48 @@ class _TorchCUDAMemoryManager(BaseCUDAMemoryManager):
 
         return MemoryPointer(device_ptr, size, finalizer=create_finalizer())
 
+class _WarpMemoryManager(BaseCUDAMemoryManager):
+    """
+    Warp device memory allocator.
 
-_MEMORY_MANAGER = {'_raw' : _RawCUDAMemoryManager, 'cupy' : _CupyCUDAMemoryManager, 'torch' : _TorchCUDAMemoryManager}
+    Args:
+        device_id: The ID (int) of the device on which memory is to be allocated.
+        logger (logging.Logger): Python Logger object.
+    """
+
+    def __init__(self, device_id, logger):
+        """
+        __init__(device_id)
+        """
+        self.device_id = device_id
+        self.logger = logger
+
+    @staticmethod
+    def get_device(device_id):
+        import warp
+        if isinstance(device_id, int):
+            if device_id < 0:
+                return warp.get_cpu_device()
+            return warp.get_cuda_device(device_id)
+        return warp.get_device(device_id)
+
+    def memalloc(self, size):
+        device = self.get_device(self.device_id)
+
+        pinned = False
+
+        allocator = device.get_allocator(pinned=pinned)
+        ptr = allocator.alloc(size)
+
+        self.logger.debug(f"_WarpCUDAMemoryManager (allocate memory): size = {size}, ptr = {ptr}, "
+                          f"device_id = {self.device_id}, stream={device.stream}")
+
+        def create_finalizer():
+            def finalizer():
+                allocator.deleter()
+                self.logger.debug(f"_WarpCUDAMemoryManager (release memory): ptr = {ptr}")
+            return finalizer
+
+        return MemoryPointer(ptr, size, finalizer=create_finalizer())
+
+_MEMORY_MANAGER = {'_raw' : _RawCUDAMemoryManager, 'cupy' : _CupyCUDAMemoryManager, 'torch' : _TorchCUDAMemoryManager, 'warp' : _WarpMemoryManager}

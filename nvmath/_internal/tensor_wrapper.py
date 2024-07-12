@@ -33,6 +33,14 @@ except ImportError as e:
     torch = None
     torch_asarray = None
 
+try:
+    import warp
+    from .tensor_ifc_warp import WarpTensor
+    _TENSOR_TYPES['warp'] = WarpTensor
+except ImportError as e:
+    warp = None
+
+
 _SUPPORTED_PACKAGES = tuple(_TENSOR_TYPES.keys())
 
 def infer_tensor_package(tensor):
